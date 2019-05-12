@@ -40,14 +40,16 @@ a {
 	width: 80%;
 	margin: 0 auto;
 	margin-top: 15px;
+	height: 1000px;
 }
 .wrapper img {
-	width: 75%;
+	width: 50%;
 	display: block;
-	margin: 0 auto;
+	padding: 10px;
 }
 .wrapper p {
 	padding: 10px;
+	float: right;
 }
 .wrapper h2 {
 	font-size: 2em;
@@ -179,11 +181,16 @@ a:hover {
 #hammy {
 	visibility: hidden;
 }
+
 @media only screen and (max-width: 700px) {
 	#hammy {
 		visibility: visible;
 	}
 	.head {
 		visibility: hidden;
+	}
+	.wrapper img {
+		margin: 0 auto;
+		width: 90%;
 	}
 }
