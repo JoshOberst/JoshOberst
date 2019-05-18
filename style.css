@@ -78,6 +78,8 @@ ul {
 .right-foot {
 	font-size: 2em;
 	align-self: center;
+	display: flex;
+	flex-direction: column;
 }
 p a {
 	color: navy;

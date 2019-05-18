@@ -8,40 +8,34 @@
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css" integrity="sha384-oS3vJWv+0UjzBfQzYUhtDYW+Pj2yciDJxpsK1OYPAYjqT085Qq/1cq5FLXAZQ7Ay" crossorigin="anonymous">
     <link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css?family=Cormorant+SC|Roboto+Mono&display=swap" rel="stylesheet">
+    <script>
+        function includeHTML() {
+          var z, i, elmnt, file, xhttp;
+          z = document.getElementsByTagName("*");
+          for (i = 0; i < z.length; i++) {
+            elmnt = z[i];
+            file = elmnt.getAttribute("w3-include-html");
+            if (file) {
+              xhttp = new XMLHttpRequest();
+              xhttp.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                  if (this.status == 200) {elmnt.innerHTML = this.responseText;}
+                  if (this.status == 404) {elmnt.innerHTML = "Page not found.";}
+                  elmnt.removeAttribute("w3-include-html");
+                  includeHTML();
+                }
+              } 
+              xhttp.open("GET", file, true);
+              xhttp.send();
+              return;
+            }
+          }
+        }
+    </script>
     <title>Josh Oberst</title>
 </head>
 <body>
-    <header>
-        <div class="head-img">
-            <span id="head-name"><b>Josh Oberst</b></span>
-        </div>
-    </header>
-    <header>
-        <nav role="navigation" id="hammy">
-            <div id="menuToggle">
-                <input type="checkbox" />
-                <span></span>
-                <span></span>
-                <span></span>
-                <ul id="menu">
-                        <a href="index.html"><li>Home</li></a>
-                        <a href="about.html"><li>About Me</li></a>
-                        <a href="tutorials.html"><li>Tutorials</li></a>
-                        <a href="100-days.html"><li>100 Days of Code</li></a>
-                        <a href="contact.html"><li>Contact</li></a>
-                        <a href="garden.html"><li>The Garden</li></a> 
-                </ul>
-            </div>
-      </nav>
-        <ul class="head">
-                <a href="index.html"><li class="head-links">Home</li></a>
-                <a href="about.html"><li class="head-links">About Me</li></a>
-                <a href="tutorials.html"><li class="head-links">Tutorials</li></a>
-                <a href="100-days.html"><li class="head-links">100 Days of Code</li></a>
-                <a href="contact.html"><li class="head-links">Contact</li></a>
-                <a href="garden.html"><li class="head-links">The Garden</li></a>
-        </ul>
-    </header>
+    <div w3-include-html="header.html"></div>
     <div class="wrapper">
         <h2>Home</h2>
         <hr>
@@ -52,25 +46,9 @@
         <p> So, you’ve stumbled upon my humble little website. Right now there isn’t much, but with school winding I am looking at having a lot more free time. I plan on completing the 100 days of code challenge, Beginning a few coding tutorials, and overall increasing my ability to market myself.</p>
         <p>Right now this site is kind of my play ground. <a href="#">The Garden</a> is where you can find all of my current projects. Just dont be too freaked out when everything is broken. When I find someting I really like I will make a tutorial or two about it, noting crazy. short, sweet, and to the point.</p>
     </div>
-    <footer id="footer">
-        <div class="left-foot">
-                <ul>
-                        <a href="index.html"><li class="footer-links">Home</li></a>
-                        <a href="about.html"><li class="footer-links">About Me</li></a>
-                        <a href="tutorials.html"><li class="footer-links">Tutorials</li></a>
-                        <a href="100-days.html"><li class="footer-links">100 Days of Code</li></a>
-                        <a href="contact.html"><li class="footer-links">Contact</li></a>
-                        <a href="garden.html"><li class="footer-links">The Garden</li></a>
-                </ul>
-        </div>
-        <div class="mid-foot">
-            <p class="quote">"If it were easy, everyone would do it."</p>
-        </div>
-        <div class="right-foot">
-                <a href="#"><i class="fab fa-twitter"></i></a>
-                <a href="#"><i class="fab fa-instagram"></i></a>
-                <a href="#"><i class="fab fa-linkedin-in"></i></a>
-        </div>
-    </footer>
+    <div w3-include-html="footer.html"></div>
 </body>
+<script>
+    includeHTML();
+</script>
 </html>
