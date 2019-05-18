@@ -29,6 +29,16 @@
 	padding-right: 15px;
 	border-radius: 4px;
 }
+#head-name{
+	font-family: 'Roboto Mono', monospace;
+}
+.quote{
+	font-style: italic;
+	font-family: 'Cormorant SC', serif;
+}
+.mid-foot{
+	align-self: center;
+}
 a:hover {
 	text-decoration: underline;
 }
@@ -58,7 +68,7 @@ footer {
 	display: flex;
 	justify-content: space-between;
 	padding: 20px;
-
+	
 	list-style-type: none;
 }
 ul {
@@ -82,7 +92,9 @@ a {
 a:hover {
 	color: navy;
 }
-
+#footer{
+	background-color: whitesmoke;
+}
 #menuToggle {
 	display: block;
 	position: relative;
