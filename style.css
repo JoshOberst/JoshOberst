@@ -5,7 +5,7 @@
 	z-index: 1;
 }
 .head-img {
-	background-image: url('blur.jpg');
+	background-image: url('imgs/blur.jpg');
 
 	height: 200px;
 	background-size: contain;
