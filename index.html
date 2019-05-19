@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css"
+    integrity="sha384-oS3vJWv+0UjzBfQzYUhtDYW+Pj2yciDJxpsK1OYPAYjqT085Qq/1cq5FLXAZQ7Ay" crossorigin="anonymous">
+  <link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css?family=Cormorant+SC|Roboto+Mono&display=swap" rel="stylesheet">
+  <script>
+    function includeHTML() {
+      var z, i, elmnt, file, xhttp;
+      z = document.getElementsByTagName("*");
+      for (i = 0; i < z.length; i++) {
+        elmnt = z[i];
+        file = elmnt.getAttribute("w3-include-html");
+        if (file) {
+          xhttp = new XMLHttpRequest();
+          xhttp.onreadystatechange = function () {
+            if (this.readyState == 4) {
+              if (this.status == 200) { elmnt.innerHTML = this.responseText; }
+              if (this.status == 404) { elmnt.innerHTML = "Page not found."; }
+              elmnt.removeAttribute("w3-include-html");
+              includeHTML();
+            }
+          }
+          xhttp.open("GET", file, true);
+          xhttp.send();
+          return;
+        }
+      }
+    }
+  </script>
+  <title>Josh Oberst</title>
+</head>
+
+<body>
+  <div w3-include-html="header.html"></div>
+  <div class="wrapper">
+    <h2>Home</h2>
+    <hr>
+    <br>
+    <div class="news"><img src="imgs/gen.jpg" alt="genaric code"></div>
+    <div class="news"></div>
+
+    <p> So, you’ve stumbled upon my humble little website. Right now there isn’t much, but with school winding I am
+      looking at having a lot more free time. I plan on completing the 100 days of code challenge, Beginning a few
+      coding tutorials, and overall increasing my ability to market myself.</p>
+    <p>Right now this site is kind of my play ground. <a href="#">The Garden</a> is where you can find all of my current
+      projects. Just dont be too freaked out when everything is broken. When I find someting I really like I will make a
+      tutorial or two about it, noting crazy. short, sweet, and to the point.</p>
+  </div>
+  <div w3-include-html="footer.html"></div>
+</body>
+<script>
+  includeHTML();
+</script>
+
+</html>
