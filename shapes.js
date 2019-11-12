@@ -1,3 +1,0 @@
-function setId(shape) {
-	document;
-}
