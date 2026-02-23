@@ -132,7 +132,6 @@
 <!-- Player Leaderboards Second -->
 <div class="section">
   <h2>Player Leaderboards (Games I've Attended)</h2>
-  <button onclick="updateLeaderboards()">Generate Leaderboards</button>
   <div id="leadersContainer"></div>
 </div>
 
@@ -155,7 +154,7 @@
 </div>
 
 <script>
-const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQdTK9Y2OsQTjWCNXjc2tx6OTfAM0vDA_t1o82WRkbf_xj-9Pipnu-DC4wDXDso2J3kQz23pEyN30Fh/pub?output=csv"; // Replace with your published Google Sheet CSV link
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQdTK9Y2OsQTjWCNXjc2tx6OTfAM0vDA_t1o82WRkbf_xj-9Pipnu-DC4wDXDso2J3kQz23pEyN30Fh/pub?output=csv";
 
 const TEAM_MAP = {
   "Yankees": "New York Yankees",
@@ -203,8 +202,13 @@ async function loadGames() {
     headers.forEach((h,i)=> obj[h] = values[i]?.trim());
     obj.awayScore = parseInt(obj.AwayScore);
     obj.homeScore = parseInt(obj.HomeScore);
-    obj.yankeesWin = (obj.Home === "Yankees" && obj.homeScore > obj.awayScore) ||
-                     (obj.Away === "Yankees" && obj.awayScore > obj.homeScore);
+    // Only count wins/losses when Yankees are playing
+    if(obj.Home === "Yankees" || obj.Away === "Yankees") {
+      obj.yankeesWin = (obj.Home === "Yankees" && obj.homeScore > obj.awayScore) ||
+                       (obj.Away === "Yankees" && obj.awayScore > obj.homeScore);
+    } else {
+      obj.yankeesWin = null; // ignore other games
+    }
     return obj;
   });
 
@@ -212,6 +216,7 @@ async function loadGames() {
   games.sort((a,b)=> new Date(b.Date) - new Date(a.Date));
 
   renderTable();
+  updateLeaderboards(); // auto-generate leaderboards
 }
 
 function renderTable() {
@@ -233,8 +238,8 @@ function renderTable() {
 function updateYankeesRecord() {
   let wins=0, losses=0;
   games.forEach(g=>{
-    if(g.yankeesWin===true) wins++;
-    if(g.yankeesWin===false) losses++;
+    if(g.yankeesWin === true) wins++;
+    if(g.yankeesWin === false) losses++;
   });
   document.getElementById("yankeesRecord").innerText = `Wins: ${wins} | Losses: ${losses}`;
 }
@@ -296,7 +301,7 @@ async function generateLeaderboards() {
           stats[name].atBats += b.atBats || 0;
           stats[name].hr += b.homeRuns || 0;
           stats[name].hbp += b.hitByPitch || 0;
-          stats[name].walks += b.baseOnBalls || 0; // <-- walks
+          stats[name].walks += b.baseOnBalls || 0; // walks
         }
         if(pi){
           stats[name].ks += pi.strikeOuts || 0;
