@@ -117,6 +117,19 @@
       border-left: 5px solid #0c2340;
       border-radius: 4px;
     }
+    .postseasonRow {
+      background-color: #fff4cc !important;
+      font-weight: bold;
+      border-left: 6px solid #d4af37;
+    }
+    .stadiumBox {
+      background-color: #f0f8ff;
+      border-left: 5px solid #0c2340;
+      border-radius: 6px;
+      padding: 10px;
+      margin-top: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
   </style>
 </head>
 <body>
@@ -126,13 +139,19 @@
 <!-- Yankees Record First -->
 <div class="section">
   <h2>My Yankees Record</h2>
-  <div id="yankeesRecord">Wins: 0 | Losses: 0</div>
+  <div id="yankeesRecord">
+    Regular Season: 0-0
+    <br>
+    Postseason: 0-0
+  </div>
 </div>
 
 <!-- Player Leaderboards Second -->
 <div class="section">
   <h2>Player Leaderboards (Games I've Attended)</h2>
   <div id="leadersContainer"></div>
+  <h2>Stadium Leaderboard</h2>
+  <div id="stadiumLeaders"></div>
 </div>
 
 <!-- Games Attended Last -->
@@ -141,6 +160,7 @@
   <table>
     <thead>
       <tr>
+        <th>Type</th>
         <th>Date</th>
         <th>Away</th>
         <th>Home</th>
@@ -189,6 +209,9 @@ const TEAM_MAP = {
 };
 
 let games = [];
+let gamePkCache =
+ JSON.parse(localStorage.getItem("gamePkCache"))
+ || {};
 
 async function loadGames() {
   const res = await fetch(CSV_URL);
@@ -217,71 +240,193 @@ async function loadGames() {
 
   renderTable();
   updateLeaderboards(); // auto-generate leaderboards
+  generateStadiumLeaderboard();
 }
 
 function renderTable() {
   const tbody = document.getElementById("tableBody");
   tbody.innerHTML = "";
   games.forEach(g => {
-    tbody.innerHTML += `<tr>
-      <td>${g.Date}</td>
-      <td>${g.Away}</td>
-      <td>${g.Home}</td>
-      <td>${g.awayScore}-${g.homeScore}</td>
-      <td>${g.Stadium}</td>
-    </tr>`;
+    const rowClass =
+      g.Postseason === "Yes"
+      ? "postseasonRow"
+      : "";
+
+      const typeLabel =
+      g.Postseason === "Yes"
+      ? "🏆 " + (g.Round || "Post")
+      : "⚾ Reg";
+
+      tbody.innerHTML += `<tr class="${rowClass}">
+          <td>${typeLabel}</td>
+          <td>${g.Date}</td>
+          <td>${g.Away}</td>
+          <td>${g.Home}</td>
+          <td>${g.awayScore}-${g.homeScore}</td>
+          <td>${g.Stadium}</td>
+        </tr>`;
   });
   document.getElementById("count").textContent = games.length;
   updateYankeesRecord();
 }
 
-function updateYankeesRecord() {
-  let wins=0, losses=0;
+function updateYankeesRecord(){
+
+ let regWins=0;
+ let regLosses=0;
+
+ let postWins=0;
+ let postLosses=0;
+
+ games.forEach(g=>{
+
+  if(g.yankeesWin === null)
+   return;
+
+  const isPost =
+   g.Postseason === "Yes";
+
+  if(isPost){
+
+   if(g.yankeesWin)
+    postWins++;
+   else
+    postLosses++;
+
+  }else{
+
+   if(g.yankeesWin)
+    regWins++;
+   else
+    regLosses++;
+
+  }
+
+ });
+
+ document.getElementById(
+  "yankeesRecord"
+ ).innerHTML =
+
+  `Regular Season: ${regWins}-${regLosses}
+   <br>
+   Postseason: ${postWins}-${postLosses}`;
+
+}
+function formatPlayerName(name){
+
+ const MAX_LENGTH = 18;
+
+ if(name.length <= MAX_LENGTH)
+  return name;
+
+ const parts = name.split(" ");
+
+ if(parts.length < 2)
+  return name;
+
+ const firstInitial =
+  parts[0][0];
+
+ const lastName =
+  parts.slice(1).join(" ");
+
+ return firstInitial + ". " + lastName;
+}
+function generateStadiumLeaderboard(){
+  const stadiumCounts = {};
   games.forEach(g=>{
-    if(g.yankeesWin === true) wins++;
-    if(g.yankeesWin === false) losses++;
+  const stadium = g.Stadium;
+  if(!stadiumCounts[stadium])
+    stadiumCounts[stadium]=0;
+    stadiumCounts[stadium]++;
   });
-  document.getElementById("yankeesRecord").innerText = `Wins: ${wins} | Losses: ${losses}`;
+  const sorted = Object.entries(stadiumCounts)
+  .sort((a,b)=>b[1]-a[1]);
+  let html =`<div class="stadiumBox"><b>🏟 Stadiums Visited</b><ol>`;
+  sorted.forEach(s=>{
+  html +=
+   `<li>${s[0]} — ${s[1]}</li>`;
+  });
+  html +="</ol></div>";document.getElementById("stadiumLeaders").innerHTML = html;
 }
 
-async function attachGamePks() {
+async function attachGamePks(){
+
   const unmatched = [];
-  for (let game of games) {
-    if (game.gamePk) continue;
-    const date = game.Date;
-    const res = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${date}`);
-    const data = await res.json();
-    if (!data.dates.length) continue;
 
-    const awayName = TEAM_MAP[game.Away] || game.Away;
-    const homeName = TEAM_MAP[game.Home] || game.Home;
+  const promises = games.map(async game => {
 
-    const found = data.dates[0].games.find(g =>
-      g.teams.away.team.name.toLowerCase().trim() === awayName.toLowerCase().trim() &&
-      g.teams.home.team.name.toLowerCase().trim() === homeName.toLowerCase().trim()
-    );
+    if(game.gamePk) return;
 
-    if (found) game.gamePk = found.gamePk;
-    else {
-      unmatched.push({
-        Date: game.Date,
-        Away: game.Away,
-        Home: game.Home,
-        APIOptions: data.dates[0].games.map(g=>`${g.teams.away.team.name} @ ${g.teams.home.team.name}`)
-      });
+    try{
+
+      const res = await fetch(
+        `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${game.Date}`
+      );
+
+      const data = await res.json();
+
+      if(!data.dates.length) return;
+
+      const awayName = TEAM_MAP[game.Away] || game.Away;
+      const homeName = TEAM_MAP[game.Home] || game.Home;
+
+      const found = data.dates[0].games.find(g =>
+
+        g.teams.away.team.name
+          .toLowerCase().trim() ===
+        awayName.toLowerCase().trim()
+
+        &&
+
+        g.teams.home.team.name
+          .toLowerCase().trim() ===
+        homeName.toLowerCase().trim()
+
+      );
+
+      if(found){
+
+        game.gamePk = found.gamePk;
+
+      }else{
+
+        unmatched.push({
+          Date: game.Date,
+          Away: game.Away,
+          Home: game.Home
+        });
+
+      }
+
+    }catch(e){
+
+      console.log("Error loading game",game);
+
     }
-  }
 
-  const unmatchedDiv = document.getElementById("unmatched");
-  if (unmatched.length) {
-    unmatchedDiv.innerHTML = "<b>Unmatched games (check CSV):</b><br>" + unmatched.map(u =>
-      `${u.Date}: ${u.Away} @ ${u.Home} <br>Possible API matches: ${u.APIOptions.join(" | ")}`
-    ).join("<br><br>");
-  } else {
-    unmatchedDiv.innerHTML = "";
-  }
+  });
+
+  await Promise.all(promises);
+
 }
+function inningsToOuts(ipString){
 
+ if(!ipString) return 0;
+
+ const parts =
+  ipString.split(".");
+
+ const innings =
+  parseInt(parts[0]) || 0;
+
+ const outs =
+  parseInt(parts[1]) || 0;
+
+ return innings*3 + outs;
+
+}
 async function generateLeaderboards() {
   const stats = {};
   for (const game of games) {
@@ -305,14 +450,14 @@ async function generateLeaderboards() {
         }
         if(pi){
           stats[name].ks += pi.strikeOuts || 0;
-          stats[name].ip += parseFloat(pi.inningsPitched||0);
+          stats[name].ip += inningsToOuts(pi.inningsPitched);
         }
       });
     });
   }
 
   const players = Object.entries(stats).map(([name,s])=>({
-    name, hits:s.hits, atBats:s.atBats, ks:s.ks, ip:s.ip, hr:s.hr, walks:s.walks, hbp:s.hbp, avg:s.atBats>0?s.hits/s.atBats:0
+    name, hits:s.hits, atBats:s.atBats, ks:s.ks, ip:s.ip,ipDisplay: Math.floor(s.ip/3) + "." + (s.ip%3), hr:s.hr, walks:s.walks, hbp:s.hbp, avg:s.atBats>0?s.hits/s.atBats:0
   }));
 
   const topHits   = [...players].sort((a,b)=>b.hits-a.hits).slice(0,10);
@@ -336,7 +481,7 @@ async function generateLeaderboards() {
     if(title.includes("Hit By Pitch")) icon = "🤕";
 
     let html = `<div class="leaderboardBox"><h3>${icon} ${title}</h3><ol>`;
-    list.forEach(p=>html+=`<li>${p.name} - ${formatter(p)}</li>`);
+    list.forEach(p=>html+=`<li>${ formatPlayerName(p.name)} - ${ formatter(p)}</li>`);
     html += "</ol></div>";
     return html;
   }
@@ -346,17 +491,66 @@ async function generateLeaderboards() {
     renderList("Top 10 Strikeouts (Pitching)",topKs,p=>p.ks) +
     renderList("Top 10 At Bats",topAB,p=>p.atBats) +
     renderList("Top 10 Batting Average (Min 10 AB)",topAVG,p=>p.avg.toFixed(3)) +
-    renderList("Top 10 Innings Pitched",topIP,p=>p.ip) +
+    renderList( "Top 10 Innings Pitched", topIP, p=>p.ipDisplay) +
     renderList("Top 10 Home Runs",topHR,p=>p.hr) +
     renderList("Top 10 Walks",topWalks,p=>p.walks) +
     renderList("Top 10 Hit By Pitch",topHBP,p=>p.hbp);
 }
 
 async function updateLeaderboards(){
-  await attachGamePks();
-  generateLeaderboards();
-}
 
+  const CACHE_KEY = "mlbStatsCache";
+  const CACHE_TIME_KEY = "mlbStatsCacheTime";
+
+  const ONE_DAY = 86400000;
+
+  const leaders =
+    document.getElementById("leadersContainer");
+
+  // Show loading message
+  leaders.innerHTML =
+   "<b>Loading player stats...</b>";
+
+  const cached =
+    localStorage.getItem(CACHE_KEY);
+
+  const cacheTime =
+    localStorage.getItem(CACHE_TIME_KEY);
+
+  if(cached && cacheTime){
+
+    const age =
+      Date.now() - cacheTime;
+
+    if(age < ONE_DAY){
+
+      console.log(
+       "Using cached leaderboards"
+      );
+
+      leaders.innerHTML =
+        cached;
+
+      return;
+    }
+  }
+
+  console.log("Building leaderboards");
+
+  await attachGamePks();
+
+  await generateLeaderboards();
+
+  localStorage.setItem(
+    CACHE_KEY,
+    leaders.innerHTML
+  );
+
+  localStorage.setItem(
+    CACHE_TIME_KEY,
+    Date.now()
+  );
+}
 loadGames();
 </script>
 
