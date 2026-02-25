@@ -130,6 +130,9 @@
       margin-top: 10px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
+    .leaderboardBox li {
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body>
@@ -153,6 +156,10 @@
   <h2>Stadium Leaderboard</h2>
   <div id="stadiumLeaders"></div>
 </div>
+
+<!-- Special Game Highlights -->
+<h2>Special Game Highlights</h2>
+<div id="gameHighlights"></div>
 
 <!-- Games Attended Last -->
 <div class="section">
@@ -241,6 +248,7 @@ async function loadGames() {
   renderTable();
   updateLeaderboards(); // auto-generate leaderboards
   generateStadiumLeaderboard();
+  generateGameHighlights();
 }
 
 function renderTable() {
@@ -287,21 +295,16 @@ function updateYankeesRecord(){
    g.Postseason === "Yes";
 
   if(isPost){
-
    if(g.yankeesWin)
     postWins++;
    else
     postLosses++;
-
   }else{
-
    if(g.yankeesWin)
     regWins++;
    else
     regLosses++;
-
   }
-
  });
 
  document.getElementById(
@@ -313,6 +316,7 @@ function updateYankeesRecord(){
    Postseason: ${postWins}-${postLosses}`;
 
 }
+
 function formatPlayerName(name){
 
  const MAX_LENGTH = 18;
@@ -333,6 +337,7 @@ function formatPlayerName(name){
 
  return firstInitial + ". " + lastName;
 }
+
 function generateStadiumLeaderboard(){
   const stadiumCounts = {};
   games.forEach(g=>{
@@ -411,6 +416,7 @@ async function attachGamePks(){
   await Promise.all(promises);
 
 }
+
 function inningsToOuts(ipString){
 
  if(!ipString) return 0;
@@ -427,6 +433,7 @@ function inningsToOuts(ipString){
  return innings*3 + outs;
 
 }
+
 async function generateLeaderboards() {
   const stats = {};
   for (const game of games) {
@@ -481,7 +488,7 @@ async function generateLeaderboards() {
     if(title.includes("Hit By Pitch")) icon = "🤕";
 
     let html = `<div class="leaderboardBox"><h3>${icon} ${title}</h3><ol>`;
-    list.forEach(p=>html+=`<li>${ formatPlayerName(p.name)} - ${ formatter(p)}</li>`);
+    list.forEach(p=>html+=`<li style="display:flex; justify-content:space-between;"><span>${formatPlayerName(p.name)}</span><span>${formatter(p)}</span></li>`);
     html += "</ol></div>";
     return html;
   }
@@ -495,6 +502,159 @@ async function generateLeaderboards() {
     renderList("Top 10 Home Runs",topHR,p=>p.hr) +
     renderList("Top 10 Walks",topWalks,p=>p.walks) +
     renderList("Top 10 Hit By Pitch",topHBP,p=>p.hbp);
+}
+
+async function generateGameHighlights(){
+
+ await attachGamePks();
+
+ let bestHitting = null;
+ let bestPitching = null;
+
+ for(const game of games){
+
+  if(!game.gamePk) continue;
+
+  const res = await fetch(
+   `https://statsapi.mlb.com/api/v1.1/game/${game.gamePk}/feed/live`
+  );
+
+  const data = await res.json();
+
+  const teams =
+   data.liveData.boxscore.teams;
+
+  ["home","away"].forEach(side => {
+
+   const players =
+    teams[side].players;
+
+   Object.values(players).forEach(p=>{
+
+    const name =
+     p.person.fullName;
+
+    const batting =
+     p.stats?.batting;
+
+    const pitching =
+     p.stats?.pitching;
+
+    // 🔥 INDIVIDUAL HITTING
+    if(batting && batting.atBats > 0){
+
+     const hits = batting.hits || 0;
+     const hr   = batting.homeRuns || 0;
+     const rbi  = batting.rbi || 0;
+     const runs = batting.runs || 0;
+
+     // weighted scoring formula
+     const score =
+      (hits)
+      + (3*hr)
+      + (2*rbi)
+      + (runs);
+
+     if(!bestHitting ||
+        score > bestHitting.score){
+
+      bestHitting = {
+       name,
+       score,
+       game,
+       hits,
+       hr,
+       rbi,
+       runs
+      };
+
+     }
+
+    }
+
+    // 🎯 INDIVIDUAL PITCHING
+    if(pitching && pitching.inningsPitched){
+
+     const outs =
+      inningsToOuts(
+       pitching.inningsPitched
+      );
+
+     const ks =
+      pitching.strikeOuts || 0;
+
+     const earnedRuns =
+      pitching.earnedRuns || 0;
+
+     // reward Ks + outs, penalize ER
+     const score =
+      (2*outs)
+      + (3*ks)
+      - (3*earnedRuns);
+
+     if(!bestPitching ||
+        score > bestPitching.score){
+
+      bestPitching = {
+       name,
+       score,
+       game,
+       ks,
+       ip: pitching.inningsPitched,
+       er: earnedRuns
+      };
+
+     }
+
+    }
+
+   });
+
+  });
+
+ }
+
+ let html = "";
+
+ if(bestHitting){
+
+  html += `
+   <div class="stadiumBox">
+   <b>🔥 Best Individual Hitting Game</b><br>
+   ${formatPlayerName(bestHitting.name)}<br>
+   ${bestHitting.hits} H,
+   ${bestHitting.hr} HR,
+   ${bestHitting.rbi} RBI,
+   ${bestHitting.runs} R<br>
+   ${bestHitting.game.Date} —
+   ${bestHitting.game.Away} vs
+   ${bestHitting.game.Home}
+   </div>
+  `;
+
+ }
+
+ if(bestPitching){
+
+  html += `
+   <div class="stadiumBox">
+   <b>🎯 Best Individual Pitching Game</b><br>
+   ${formatPlayerName(bestPitching.name)}<br>
+   ${bestPitching.ip} IP,
+   ${bestPitching.ks} K,
+   ${bestPitching.er} ER<br>
+   ${bestPitching.game.Date} —
+   ${bestPitching.game.Away} vs
+   ${bestPitching.game.Home}
+   </div>
+  `;
+
+ }
+
+ document.getElementById(
+  "gameHighlights"
+ ).innerHTML = html;
+
 }
 
 async function updateLeaderboards(){
@@ -551,6 +711,7 @@ async function updateLeaderboards(){
     Date.now()
   );
 }
+
 loadGames();
 </script>
 
