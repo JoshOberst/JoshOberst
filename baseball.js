@@ -1,5 +1,90 @@
 const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQdTK9Y2OsQTjWCNXjc2tx6OTfAM0vDA_t1o82WRkbf_xj-9Pipnu-DC4wDXDso2J3kQz23pEyN30Fh/pub?output=csv";
 
+let currentMode = "modern";
+
+
+const STAT_MODES = {
+
+  classic: {
+    hitting: [
+      { key:"avg", label:"AVG", minAB:10, type:"rate" },
+      { key:"hr", label:"HR", type:"count" },
+      { key:"rbi", label:"RBI", type:"count" },
+      { key:"hits", label:"Hits", type:"count" }
+    ],
+    pitching: [
+      { key:"wins", label:"Wins", type:"count" },
+      { key:"era", label:"ERA", minIP:5, type:"rate" },
+      { key:"ks", label:"Strikeouts", type:"count" },
+      { key:"ip", label:"Innings Pitched", type:"count" }
+    ]
+  },
+
+  modern: {
+    hitting: [
+      { key:"obp", label:"OBP", minAB:10, type:"rate" },
+      { key:"hr", label:"HR", type:"count" },
+      { key:"ops", label:"OPS", minAB:10, type:"rate" },
+      { key:"slg", label:"SLG", minAB:10, type:"rate" }
+    ],
+    pitching: [
+      { key:"whip", label:"WHIP", minIP:5, type:"rate" },
+      { key:"era", label:"ERA", minIP:5, type:"rate" },
+      { key:"ks", label:"Strikeouts", type:"count" },
+      { key:"kbb", label:"K/BB", minIP:5, type:"rate" }
+    ]
+  },
+
+  fun: {
+    hitting: [
+      { key:"walks", label:"Walks", type:"count" },
+      { key:"hbp", label:"HBP", type:"count" },
+      { key:"xbh", label:"XBH", type:"count" },
+      { key:"sb", label:"Stolen Bases", type:"count" }
+    ],
+    pitching: [
+      { key:"saves", label:"Saves", type:"count" },
+      { key:"hitBatters", label:"Hit Batters", type:"count" },
+      { key:"wildPitches", label:"Wild Pitches", type:"count" },
+      { key:"bf", label:"Batters Faced (Pitch Count)", type:"special" }
+    ]
+  }
+
+};
+
+const STAT_ICONS = {
+
+  // Hitting - Classic / Modern
+  avg: "📊",
+  obp: "🧠",
+  slg: "💪",
+  ops: "🔥",
+  hr: "💣",
+  rbi: "🎯",
+  hits: "⚾",
+
+  // Hitting - Fun
+  walks: "🚶",
+  hbp: "🤕",
+  sb: "🚀",
+  xbh: "💥",
+
+  // Pitching - Classic / Modern
+  wins: "🏆",
+  era: "📉",
+  whip: "🧊",
+  ks: "🥊",
+  kbb: "⚖️",
+  ip: "⏱",
+
+  // Pitching - Fun
+  saves: "🔒",
+  hitBatters: "💢",
+  wildPitches: "😵",
+  bf: "📦"
+
+};
+
 const TEAM_MAP = {
   "Yankees": "New York Yankees",
   "Red Sox": "Boston Red Sox",
@@ -93,6 +178,38 @@ function renderTable() {
   });
   document.getElementById("count").textContent = games.length;
   updateYankeesRecord();
+}
+
+function renderList(title, list, formatter, statKey){
+
+  const icon = STAT_ICONS[statKey] || "";
+
+  let html = `
+    <div class="leaderboardBox">
+      <h3>${icon} ${title}</h3>
+      <ol>
+  `;
+
+  list.forEach(p=>{
+    html += `
+      <li style="display:flex; justify-content:space-between;">
+        <span>${formatPlayerName(p.name)}</span>
+        <span>${formatter(p)}</span>
+      </li>
+    `;
+  });
+
+  html += "</ol></div>";
+
+  return html;
+}
+
+function setMode(mode){
+
+ currentMode = mode;
+
+ generateLeaderboards();
+
 }
 
 function updateYankeesRecord(){
@@ -252,73 +369,215 @@ function inningsToOuts(ipString){
 }
 
 async function generateLeaderboards() {
+
   const stats = {};
+
   for (const game of games) {
+
     if(!game.gamePk) continue;
-    const res = await fetch(`https://statsapi.mlb.com/api/v1.1/game/${game.gamePk}/feed/live`);
+
+    const res = await fetch(
+      `https://statsapi.mlb.com/api/v1.1/game/${game.gamePk}/feed/live`
+    );
+
     const data = await res.json();
     const teams = data.liveData.boxscore.teams;
 
     ["home","away"].forEach(side => {
+
       Object.values(teams[side].players).forEach(p=>{
+
         const name = p.person.fullName;
-        if(!stats[name]) stats[name]={hits:0, atBats:0, ks:0, ip:0, hr:0, hbp:0, walks:0};
+
+        if(!stats[name]){
+          stats[name]={
+            hits:0, doubles:0, triples:0, hr:0, rbi:0,
+            atBats:0, walks:0, hbp:0, sb:0,
+            ks:0, ip:0, er:0,
+            hitsAllowed:0, walksAllowed:0,
+            wins:0, saves:0,
+            hitBatters:0, wildPitches:0,
+            battersFaced:0, pitches:0
+          };
+        }
+
         const b = p.stats?.batting;
         const pi = p.stats?.pitching;
-        if(b){ 
+
+        if(b){
           stats[name].hits += b.hits || 0;
-          stats[name].atBats += b.atBats || 0;
+          stats[name].doubles += b.doubles || 0;
+          stats[name].triples += b.triples || 0;
           stats[name].hr += b.homeRuns || 0;
+          stats[name].rbi += b.rbi || 0;
+          stats[name].atBats += b.atBats || 0;
+          stats[name].walks += b.baseOnBalls || 0;
           stats[name].hbp += b.hitByPitch || 0;
-          stats[name].walks += b.baseOnBalls || 0; // walks
+          stats[name].sb += b.stolenBases || 0;
         }
+
         if(pi){
           stats[name].ks += pi.strikeOuts || 0;
           stats[name].ip += inningsToOuts(pi.inningsPitched);
+          stats[name].er += pi.earnedRuns || 0;
+          stats[name].hitsAllowed += pi.hits || 0;
+          stats[name].walksAllowed += pi.baseOnBalls || 0;
+          stats[name].wins += pi.wins || 0;
+          stats[name].saves += pi.saves || 0;
+          stats[name].hitBatters += pi.hitBatsmen || 0;
+          stats[name].wildPitches += pi.wildPitches || 0;
+          stats[name].battersFaced += pi.battersFaced || 0;
+          stats[name].pitches += pi.numberOfPitches || 0;
         }
+
       });
+
     });
+
   }
 
   const players = Object.entries(stats).map(([name,s])=>({
-    name, hits:s.hits, atBats:s.atBats, ks:s.ks, ip:s.ip,ipDisplay: Math.floor(s.ip/3) + "." + (s.ip%3), hr:s.hr, walks:s.walks, hbp:s.hbp, avg:s.atBats>0?s.hits/s.atBats:0
+    name,
+    ...s
   }));
 
-  const topHits   = [...players].sort((a,b)=>b.hits-a.hits).slice(0,10);
-  const topKs     = [...players].sort((a,b)=>b.ks-a.ks).slice(0,10);
-  const topAB     = [...players].sort((a,b)=>b.atBats-a.atBats).slice(0,10);
-  const topAVG    = [...players].filter(p=>p.atBats>=10).sort((a,b)=>b.avg-a.avg).slice(0,10);
-  const topIP     = [...players].sort((a,b)=>b.ip-a.ip).slice(0,10);
-  const topHR     = [...players].sort((a,b)=>b.hr-a.hr).slice(0,10);
-  const topWalks  = [...players].sort((a,b)=>b.walks-a.walks).slice(0,10);
-  const topHBP    = [...players].sort((a,b)=>b.hbp-a.hbp).slice(0,10);
+  const modeConfig = STAT_MODES[currentMode];
+  let htmlOutput = "";
 
-  function renderList(title,list,formatter){
-    let icon = "";
-    if(title.includes("Hits")) icon = "⚾";
-    if(title.includes("Strikeouts")) icon = "🏆";
-    if(title.includes("At Bats")) icon = "📝";
-    if(title.includes("Batting Average")) icon = "📊";
-    if(title.includes("Innings Pitched")) icon = "🎯";
-    if(title.includes("Home Runs")) icon = "💥";
-    if(title.includes("Walks")) icon = "🏃";
-    if(title.includes("Hit By Pitch")) icon = "🤕";
-
-    let html = `<div class="leaderboardBox"><h3>${icon} ${title}</h3><ol>`;
-    list.forEach(p=>html+=`<li style="display:flex; justify-content:space-between;"><span>${formatPlayerName(p.name)}</span><span>${formatter(p)}</span></li>`);
-    html += "</ol></div>";
-    return html;
+  function formatIP(outs){
+    return Math.floor(outs/3) + "." + (outs%3);
   }
 
-  document.getElementById("leadersContainer").innerHTML =
-    renderList("Top 10 Hits",topHits,p=>p.hits) +
-    renderList("Top 10 Strikeouts (Pitching)",topKs,p=>p.ks) +
-    renderList("Top 10 At Bats",topAB,p=>p.atBats) +
-    renderList("Top 10 Batting Average (Min 10 AB)",topAVG,p=>p.avg.toFixed(3)) +
-    renderList( "Top 10 Innings Pitched", topIP, p=>p.ipDisplay) +
-    renderList("Top 10 Home Runs",topHR,p=>p.hr) +
-    renderList("Top 10 Walks",topWalks,p=>p.walks) +
-    renderList("Top 10 Hit By Pitch",topHBP,p=>p.hbp);
+  function getTopPlayers(stat){
+
+    let list = [...players];
+
+    if(stat.minAB){
+      list = list.filter(p=>p.atBats >= stat.minAB);
+    }
+
+    if(stat.minIP){
+      list = list.filter(p=>p.ip >= stat.minIP * 3);
+    }
+
+    list = list.map(p=>{
+
+      let value = 0;
+
+      switch(stat.key){
+
+        case "avg":
+          value = p.atBats>0 ? p.hits/p.atBats : 0;
+          break;
+
+        case "obp":
+          value = (p.hits + p.walks + p.hbp) /
+                  ((p.atBats + p.walks + p.hbp) || 1);
+          break;
+
+        case "slg":
+          const totalBases =
+            p.hits +
+            p.doubles +
+            (2*p.triples) +
+            (3*p.hr);
+          value = p.atBats>0 ? totalBases/p.atBats : 0;
+          break;
+
+        case "ops":
+          const obp =
+            (p.hits + p.walks + p.hbp) /
+            ((p.atBats + p.walks + p.hbp) || 1);
+
+          const tb =
+            p.hits +
+            p.doubles +
+            (2*p.triples) +
+            (3*p.hr);
+
+          const slg = p.atBats>0 ? tb/p.atBats : 0;
+
+          value = obp + slg;
+          break;
+
+        case "whip":
+          value = p.ip>0 ?
+            (p.hitsAllowed + p.walksAllowed)/(p.ip/3)
+            : 0;
+          break;
+
+        case "era":
+          value = p.ip>0 ?
+            (p.er * 9)/(p.ip/3)
+            : 0;
+          break;
+
+        case "kbb":
+          value = p.walksAllowed>0 ?
+            p.ks/p.walksAllowed
+            : p.ks;
+          break;
+
+        case "xbh":
+          value = p.doubles + p.triples + p.hr;
+          break;
+
+        case "bf":
+          value = p.battersFaced;
+          break;
+
+        case "ip":
+          value = p.ip;
+          break;
+
+        default:
+          value = p[stat.key] || 0;
+      }
+
+      return {...p, statValue:value};
+
+    });
+
+    list.sort((a,b)=>b.statValue - a.statValue);
+
+    return list.slice(0,10);
+  }
+
+  [...modeConfig.hitting, ...modeConfig.pitching]
+    .forEach(stat=>{
+
+      const topList = getTopPlayers(stat);
+
+      htmlOutput += renderList(
+        `Top 10 ${stat.label}`,
+        topList,
+        p=>{
+
+          if(stat.key==="ip"){
+            return formatIP(p.ip);
+          }
+
+          if(stat.key==="era" || stat.key==="whip"){
+            return p.statValue.toFixed(2);
+          }
+
+          if(stat.type==="rate"){
+            return p.statValue.toFixed(3);
+          }
+
+          if(stat.key==="bf"){
+            return `${p.battersFaced} (${p.pitches})`;
+          }
+
+          return p.statValue;
+          
+        },
+        stat.key
+      );
+
+    });
+
+  document.getElementById("leadersContainer").innerHTML = htmlOutput;
 }
 
 async function generateGameHighlights(){
