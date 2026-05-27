@@ -1,0 +1,32 @@
+name: Update Hall of Fame Data
+
+on:
+  schedule:
+    - cron: "0 3 * * *"  # every day at 3AM UTC
+  workflow_dispatch:
+
+jobs:
+  update-hof:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Fetch Hall of Fame data
+        run: |
+          curl -s "https://baseballhistoryproject.com/api/hall-of-fame" \
+          -o hof.json
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add hof.json
+
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Update Hall of Fame data"
+            git push
+          fi

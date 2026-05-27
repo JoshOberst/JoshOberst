@@ -1,5 +1,78 @@
 const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQdTK9Y2OsQTjWCNXjc2tx6OTfAM0vDA_t1o82WRkbf_xj-9Pipnu-DC4wDXDso2J3kQz23pEyN30Fh/pub?output=csv";
 
+const HOF_API_URL = "hof.json";
+
+function normalizeName(name) {
+  return (name || "")
+    .toLowerCase()
+    .replace(/\./g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function loadHOFSet() {
+  const res = await fetch(HOF_API_URL);
+  const data = await res.json();
+
+  const hofSet = new Set();
+
+  data.data.forEach(p => {
+    const fullName = `${p.firstName} ${p.lastName}`;
+    hofSet.add(normalizeName(fullName));
+  });
+
+  return hofSet;
+}
+
+async function generateHOFTracker() {
+  const hofSet = await loadHOFSet();
+
+  const seen = new Set();
+
+  for (const game of games) {
+    if (!game.gamePk) continue;
+
+    const res = await fetch(
+      `https://statsapi.mlb.com/api/v1.1/game/${game.gamePk}/feed/live`
+    );
+
+    const data = await res.json();
+    const teams = data.liveData.boxscore.teams;
+
+    ["home", "away"].forEach(side => {
+      Object.values(teams[side].players).forEach(p => {
+        const name = normalizeName(p.person.fullName);
+
+        if (hofSet.has(name)) {
+          seen.add(p.person.fullName);
+        }
+      });
+    });
+  }
+
+  const list = [...seen].sort();
+
+  let html = "";
+
+  if (list.length === 0) {
+    html = `<div class="stadiumBox">
+      <b>🏛 Hall of Fame Tracker</b><br>
+      No Hall of Famers seen yet
+    </div>`;
+  } else {
+    html = `
+      <div class="stadiumBox">
+        <b>🏛 Hall of Famers I've Seen</b>
+        <ul>
+          ${list.map(p => `<li>${formatPlayerName(p)}</li>`).join("")}
+        </ul>
+      </div>
+    `;
+  }
+
+  document.getElementById("hofContainer").innerHTML = html;
+}
+
 const LEADER_STATS = [
   { key:"avg", label:"Batting AVG", type:"rate", minAB:10 },
   { key:"hr", label:"Home Runs", type:"count" },
@@ -111,6 +184,7 @@ async function loadGames() {
   updateLeaderboards(); // auto-generate leaderboards
   generateStadiumLeaderboard();
   generateGameHighlights();
+  generateHOFTracker();
 }
 
 function renderTable() {
