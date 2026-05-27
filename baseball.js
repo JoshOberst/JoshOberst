@@ -1,56 +1,16 @@
 const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQdTK9Y2OsQTjWCNXjc2tx6OTfAM0vDA_t1o82WRkbf_xj-9Pipnu-DC4wDXDso2J3kQz23pEyN30Fh/pub?output=csv";
 
-let currentMode = "modern";
+const LEADER_STATS = [
+  { key:"avg", label:"Batting AVG", type:"rate", minAB:10 },
+  { key:"hr", label:"Home Runs", type:"count" },
+  { key:"hits", label:"Hits", type:"count" },
+  { key:"ops", label:"OPS", type:"rate", minAB:10 },
+  { key:"hbp", label:"Hit By Pitch", type:"count" },
 
-
-const STAT_MODES = {
-
-  classic: {
-    hitting: [
-      { key:"avg", label:"AVG", minAB:10, type:"rate" },
-      { key:"hr", label:"HR", type:"count" },
-      { key:"rbi", label:"RBI", type:"count" },
-      { key:"hits", label:"Hits", type:"count" }
-    ],
-    pitching: [
-      { key:"wins", label:"Wins", type:"count" },
-      { key:"era", label:"ERA", minIP:5, type:"rate" },
-      { key:"ks", label:"Strikeouts", type:"count" },
-      { key:"ip", label:"Innings Pitched", type:"count" }
-    ]
-  },
-
-  modern: {
-    hitting: [
-      { key:"obp", label:"OBP", minAB:10, type:"rate" },
-      { key:"hr", label:"HR", type:"count" },
-      { key:"ops", label:"OPS", minAB:10, type:"rate" },
-      { key:"slg", label:"SLG", minAB:10, type:"rate" }
-    ],
-    pitching: [
-      { key:"whip", label:"WHIP", minIP:5, type:"rate" },
-      { key:"era", label:"ERA", minIP:5, type:"rate" },
-      { key:"ks", label:"Strikeouts", type:"count" },
-      { key:"kbb", label:"K/BB", minIP:5, type:"rate" }
-    ]
-  },
-
-  fun: {
-    hitting: [
-      { key:"walks", label:"Walks", type:"count" },
-      { key:"hbp", label:"HBP", type:"count" },
-      { key:"xbh", label:"XBH", type:"count" },
-      { key:"sb", label:"Stolen Bases", type:"count" }
-    ],
-    pitching: [
-      { key:"saves", label:"Saves", type:"count" },
-      { key:"hitBatters", label:"Hit Batters", type:"count" },
-      { key:"wildPitches", label:"Wild Pitches", type:"count" },
-      { key:"bf", label:"Batters Faced (Pitch Count)", type:"special" }
-    ]
-  }
-
-};
+  { key:"ks", label:"Strikeouts", type:"count" },
+  { key:"ip", label:"Innings Pitched", type:"special" },
+  { key:"saves", label:"Saves", type:"count" }
+];
 
 const STAT_ICONS = {
 
@@ -202,14 +162,6 @@ function renderList(title, list, formatter, statKey){
   html += "</ol></div>";
 
   return html;
-}
-
-function setMode(mode){
-
- currentMode = mode;
-
- generateLeaderboards();
-
 }
 
 function updateYankeesRecord(){
@@ -441,7 +393,8 @@ async function generateLeaderboards() {
     ...s
   }));
 
-  const modeConfig = STAT_MODES[currentMode];
+  const modeConfig = {hitting: LEADER_STATS, pitching: []};
+
   let htmlOutput = "";
 
   function formatIP(outs){
@@ -543,7 +496,7 @@ async function generateLeaderboards() {
     return list.slice(0,10);
   }
 
-  [...modeConfig.hitting, ...modeConfig.pitching]
+  [...modeConfig.hitting]
     .forEach(stat=>{
 
       const topList = getTopPlayers(stat);
